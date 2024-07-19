@@ -1,23 +1,6 @@
-import { Entity, MikroORM, PrimaryKey, Property } from '@mikro-orm/sqlite';
-
-@Entity()
-class User {
-
-  @PrimaryKey()
-  id!: number;
-
-  @Property()
-  name: string;
-
-  @Property({ unique: true })
-  email: string;
-
-  constructor(name: string, email: string) {
-    this.name = name;
-    this.email = email;
-  }
-
-}
+import { MikroORM } from '@mikro-orm/sqlite';
+import { Address, City } from './address.entity';
+import { User } from './user.entity';
 
 let orm: MikroORM;
 
@@ -35,17 +18,20 @@ afterAll(async () => {
   await orm.close(true);
 });
 
-test('basic CRUD example', async () => {
-  orm.em.create(User, { name: 'Foo', email: 'foo' });
+test('populating a relation of a loaded entity should work', async () => {
+  // create a new user with an address
+  const city = orm.em.create(City, { name: 'Geneva' });
+  const address = orm.em.create(Address, { name: '123 Street', city });
+  orm.em.create(User, { name: 'Foo', email: 'foo', address });
   await orm.em.flush();
   orm.em.clear();
 
-  const user = await orm.em.findOneOrFail(User, { email: 'foo' });
+  // do not populate the address for now
+  const user = await orm.em.findOneOrFail(User, { email: 'foo'});
   expect(user.name).toBe('Foo');
-  user.name = 'Bar';
-  orm.em.remove(user);
-  await orm.em.flush();
 
-  const count = await orm.em.count(User, { email: 'foo' });
-  expect(count).toBe(0);
+  // then populate the address relation of user
+  const userAddress = user.address;
+  const loadedAddress = await orm.em.populate(userAddress, ['city']);
+  expect(loadedAddress.city).toBeDefined(); // fails
 });
