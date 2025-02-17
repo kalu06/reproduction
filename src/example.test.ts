@@ -12,9 +12,13 @@ class User {
   @Property({ unique: true })
   email: string;
 
-  constructor(name: string, email: string) {
+  @Property({ nullable: true })
+  foo: number | null
+
+  constructor(name: string, email: string, foo: number | null = null) {
     this.name = name;
     this.email = email;
+    this.foo = foo;
   }
 
 }
@@ -36,16 +40,10 @@ afterAll(async () => {
 });
 
 test('basic CRUD example', async () => {
-  orm.em.create(User, { name: 'Foo', email: 'foo' });
-  await orm.em.flush();
-  orm.em.clear();
+  // raises a type error on foo
+  orm.em.create(User, { name: 'Foo', email: 'foo', foo: new Date() });
 
-  const user = await orm.em.findOneOrFail(User, { email: 'foo' });
-  expect(user.name).toBe('Foo');
-  user.name = 'Bar';
-  orm.em.remove(user);
-  await orm.em.flush();
-
-  const count = await orm.em.count(User, { email: 'foo' });
-  expect(count).toBe(0);
+  const user = new User('Foo', 'foo@example.com');
+  // no type error on assign on foo?
+  orm.em.assign(user, { name: 'Foo', email: 'foo', foo: new Date() });
 });
